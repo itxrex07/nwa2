@@ -6,11 +6,11 @@ Advanced modular WhatsApp userbot with Telegram integration, AI capabilities, an
 
 ### Deploy to Render
 
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/YOUR_USERNAME/HyperWa)
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/itxrex07/n2a2)
 
 ### Deploy to Koyeb
 
-[![Deploy to Koyeb](https://www.koyeb.com/static/images/deploy/button.svg)](https://app.koyeb.com/deploy?type=git&repository=github.com/YOUR_USERNAME/HyperWa&branch=main&name=hyperwa-bot)
+[![Deploy to Koyeb](https://www.koyeb.com/static/images/deploy/button.svg)](https://app.koyeb.com/deploy?type=git&repository=github.com/itxrex07/nwa2&branch=main&name=hyperwa-bot)
 
 ## Features
 
