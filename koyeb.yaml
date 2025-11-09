@@ -1,0 +1,21 @@
+services:
+  - name: hyperwa-bot
+    type: web
+    instance_type: nano
+    regions:
+      - fra
+    env:
+      - key: NODE_ENV
+        value: production
+    build:
+      dockerfile: ./Dockerfile.koyeb
+    ports:
+      - port: 8000
+        protocol: http
+    scaling:
+      min: 1
+      max: 1
+    health_checks:
+      - http:
+          path: /health
+          port: 8000

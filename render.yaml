@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: hyperwa-bot
+    runtime: node
+    plan: free
+    region: frankfurt
+    buildCommand: npm install
+    startCommand: node keep-alive.js & node index.js
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        generateValue: true
+      - key: RENDER_EXTERNAL_URL
+        sync: false
