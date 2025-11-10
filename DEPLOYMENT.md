@@ -4,11 +4,14 @@ Your HyperWa bot is now configured for deployment on Render and Koyeb with anti-
 
 ## Features
 
-- Auto keep-alive server on port 3000/8000
-- Self-ping every 5 minutes to prevent sleeping
-- Health check endpoints for monitoring
-- Beautiful status page at root URL
-- Production-ready configuration
+- Ultra-aggressive keep-alive server that pings every 2 minutes
+- Self-ping with HTTPS support for secure deployments
+- Docker health checks for Koyeb (30s interval)
+- Beautiful status page with auto-refresh (30s)
+- Browser-side keep-alive pings (every 60s)
+- Memory monitoring and logging
+- Production-ready configuration for 24/7 uptime
+- Prevents deep sleep on free tier platforms
 
 ## Deploy to Render
 
@@ -68,15 +71,26 @@ GEMINI_API_KEY=your_gemini_api_key
 OPENWEATHER_API_KEY=your_weather_api_key
 ```
 
-## Keep-Alive Mechanism
+## Keep-Alive Mechanism (Enhanced)
 
-The bot includes a keep-alive server that:
+The bot uses a multi-layered keep-alive approach to prevent deep sleep:
 
-1. Runs an Express server on the assigned PORT
-2. Serves a status page at the root URL
-3. Provides health check endpoint at `/health`
-4. Pings itself every 5 minutes to prevent sleeping
-5. Works automatically on both Render and Koyeb
+### Server-Side
+1. Express server runs on port 8000 (Koyeb) or dynamic PORT (Render)
+2. Ultra-aggressive self-pings every 2 minutes
+3. Continuous memory monitoring every 5 minutes
+4. Connection keep-alive headers enabled
+5. Process keeps event loop busy with timers
+
+### Client-Side
+1. Beautiful status page at root URL with auto-refresh every 30s
+2. Browser-side health check pings every 60s via JavaScript
+3. Bot status indicator shows connection health
+
+### Platform Integration
+1. **Koyeb**: Docker health checks every 30s with 10s timeout
+2. **Render**: Platform health check at `/health` endpoint
+3. Both platforms configured for aggressive monitoring
 
 ## Health Check Endpoints
 
@@ -94,12 +108,15 @@ Access your bot's status page at:
 
 ### Bot keeps sleeping on free tier
 
-The keep-alive mechanism should prevent this, but if it still happens:
+If the bot still goes into deep sleep despite the enhanced keep-alive:
 
-1. Check if the keep-alive server is running (check logs)
-2. Verify PORT environment variable is set correctly
-3. Ensure the platform URL env var is available (RENDER_EXTERNAL_URL or KOYEB_PUBLIC_URL)
-4. Check if health check endpoint is responding
+1. **Check Logs**: Look for `[Keep-Alive]` messages - should see pings every 2 minutes
+2. **Verify URL**: Ensure KOYEB_PUBLIC_URL or RENDER_EXTERNAL_URL is set
+3. **Test Endpoint**: Visit your app URL in browser - should show green "ACTIVE" status
+4. **Health Check**: `curl https://your-app.koyeb.app/health` should return JSON
+5. **Docker Logs**: On Koyeb, check if Docker health checks are passing
+6. **Process Check**: Both `keep-alive.js` and `index.js` should be running
+7. **Memory**: Bot shouldn't use more than 512MB (configured limit)
 
 ### MongoDB connection issues
 
@@ -113,13 +130,25 @@ The keep-alive mechanism should prevent this, but if it still happens:
 2. Verify all dependencies in package.json are valid
 3. Check build logs for specific errors
 
-## Notes
+## Important Notes
 
-- Free tier on Render may still experience some delays after 15 minutes of inactivity
-- Koyeb free tier is more stable for 24/7 operation
-- Both platforms support custom domains
-- Keep-alive pings happen every 5 minutes
-- The bot automatically detects the platform and configures URLs
+### Koyeb (Recommended)
+- More stable for 24/7 free tier operation
+- Docker health checks ensure automatic restart if needed
+- Keep-alive pings every 2 minutes prevent sleep
+- Better memory management with 512MB limit
+
+### Render
+- Free tier may have occasional delays
+- Keep-alive pings every 2 minutes keep process active
+- Health check endpoint enables platform monitoring
+- Status page accessible at your app URL
+
+### General
+- Both platforms require MONGO_URI for database connection
+- Keep-alive logs show `[Keep-Alive]` prefix for easy debugging
+- Bot status visible in browser at app root URL
+- Multiple redundant keep-alive mechanisms ensure uptime
 
 ## Support
 
