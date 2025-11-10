@@ -1,209 +1,161 @@
-import express from 'express';
-import http from 'http';
-import https from 'https';
+import express from "express";
+import http from "http";
+import https from "https";
 
 const app = express();
 const PORT = process.env.PORT || 8000;
 
-// Platform envs
-const KOYEB_PUBLIC_URL = process.env.KOYEB_PUBLIC_URL || null;
-const RENDER_EXTERNAL_URL = process.env.RENDER_EXTERNAL_URL || null;
+let REAL_URL = null;
+let BOT_HEALTHY = false;
 
-// Default SELF URL (fallback)
-let SELF_URL = RENDER_EXTERNAL_URL || KOYEB_PUBLIC_URL || `http://localhost:${PORT}`;
+// Guess from env first (Render/Koyeb)
+if (process.env.RENDER_EXTERNAL_URL) REAL_URL = process.env.RENDER_EXTERNAL_URL;
+if (process.env.KOYEB_PUBLIC_URL) REAL_URL = process.env.KOYEB_PUBLIC_URL;
 
-// Runtime-learned actual domain
-let REAL_URL = SELF_URL;
+// Log helper
+const log = (...msg) => console.log("[KeepAlive ADV]", ...msg);
 
-let botHealthy = false;
-
-app.use(express.json());
-
-// ✅ AUTO-DETECT REAL PUBLIC URL (Works on Koyeb + Render)
+// ✅ Learn REAL public URL from proxy headers (Koyeb + Render reliable)
 app.use((req, res, next) => {
     const proto = req.headers["x-forwarded-proto"];
     const host = req.headers["x-forwarded-host"] || req.headers.host;
 
     if (proto && host) {
-        const detected = `${proto}://${host}`;
-        if (REAL_URL !== detected) {
-            console.log(`[Keep-Alive] ✅ Detected external URL: ${detected}`);
-            REAL_URL = detected;
+        const newURL = `${proto}://${host}`;
+        if (REAL_URL !== newURL) {
+            REAL_URL = newURL;
+            log("✅ Learned domain:", REAL_URL);
+            restartExternalPinger();
         }
     }
     next();
 });
 
-// ✅ UI Page
-app.get('/', (req, res) => {
-    const uptime = process.uptime();
-    const hours = Math.floor(uptime / 3600);
-    const minutes = Math.floor((uptime % 3600) / 60);
-    const seconds = Math.floor(uptime % 60);
+// ✅ UI
+app.get("/", (req, res) => {
+    const up = process.uptime();
+    const h = Math.floor(up / 3600);
+    const m = Math.floor((up % 3600) / 60);
+    const s = Math.floor(up % 60);
 
     res.send(`
-<!DOCTYPE html>
-<html>
-<head>
-    <title>HyperWa Bot - Active</title>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="refresh" content="30">
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            color: white;
-        }
-        .container {
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-            border-radius: 20px;
-            padding: 40px;
-            box-shadow: 0 8px 32px rgba(31,38,135,.37);
-            border: 1px solid rgba(255,255,255,.18);
-            max-width: 500px;
-            text-align: center;
-        }
-        h1 {
-            font-size: 2.5em;
-            margin-bottom: 10px;
-            animation: glow 2s ease-in-out infinite alternate;
-        }
-        @keyframes glow {
-            from { text-shadow: 0 0 10px #fff,0 0 20px #fff,0 0 30px #667eea; }
-            to   { text-shadow: 0 0 20px #fff,0 0 30px #764ba2,0 0 40px #764ba2; }
-        }
-        .status {
-            display: inline-block;
-            background: #10b981;
-            padding: 8px 20px;
-            border-radius: 25px;
-            margin: 20px 0;
-            font-weight: bold;
-            animation: pulse 2s infinite;
-        }
-        @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:.7;} }
-        .info { background: rgba(255,255,255,.1); padding:20px; border-radius:10px; margin-top:20px; text-align:left; }
-        .info-item {
-            display:flex; justify-content:space-between; padding:8px 0;
-            border-bottom:1px solid rgba(255,255,255,0.1);
-        }
-        .info-item:last-child { border-bottom:none; }
-        .label { font-weight:600; }
-        .value { color:#a5b4fc; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>HyperWa Bot</h1>
-        <div class="status">ACTIVE</div>
-        <div class="info">
-            <div class="info-item"><span class="label">Status:</span><span class="value">Running</span></div>
-            <div class="info-item"><span class="label">Uptime:</span><span class="value">${hours}h ${minutes}m ${seconds}s</span></div>
-            <div class="info-item"><span class="label">Version:</span><span class="value">3.0.0</span></div>
-            <div class="info-item"><span class="label">Bot Status:</span><span class="value">${botHealthy ? 'Connected' : 'Initializing'}</span></div>
-            <div class="info-item"><span class="label">Public URL:</span><span class="value">${REAL_URL}</span></div>
-        </div>
-    </div>
-</body>
-</html>
+        <html>
+        <head><title>HyperWa Bot</title></head>
+        <body style="background:#111;color:#eee;font-family:Arial;text-align:center;padding:40px;">
+            <h1>HyperWa Bot ✅</h1>
+            <p>Status: Running</p>
+            <p>Uptime: ${h}h ${m}m ${s}s</p>
+            <p>Detected URL: <b>${REAL_URL || "-"}</b></p>
+            <p>Bot Status: <b>${BOT_HEALTHY ? "Connected" : "Initializing"}</b></p>
+            <p>Check: <code>/whoami</code></p>
+        </body>
+        </html>
     `);
 });
 
-// ✅ Health Endpoint
-app.get('/health', (req, res) => {
+// ✅ Health
+app.get("/health", (req, res) => {
     res.json({
-        status: 'ok',
+        ok: true,
         uptime: process.uptime(),
-        timestamp: new Date().toISOString(),
-        memory: process.memoryUsage(),
-        platform: process.platform,
-        bot_healthy: botHealthy
+        detected: REAL_URL,
+        bot: BOT_HEALTHY,
+        ts: new Date().toISOString()
     });
 });
 
-// ✅ Ping
-app.get('/ping', (req, res) => {
-    res.json({ alive: true, timestamp: Date.now() });
+// ✅ Whoami debug
+app.get("/whoami", (req, res) => {
+    res.json({
+        detected_url: REAL_URL,
+        headers: {
+            "x-forwarded-proto": req.headers["x-forwarded-proto"],
+            "x-forwarded-host": req.headers["x-forwarded-host"],
+            host: req.headers.host
+        }
+    });
 });
 
-// ✅ Receive bot status
-app.post('/bot-status', (req, res) => {
-    botHealthy = req.body?.healthy !== false;
-    res.json({ received: true });
+// ✅ Bot status endpoint
+app.post("/bot-status", (req, res) => {
+    BOT_HEALTHY = req.body?.healthy !== false;
+    res.json({ ok: true });
 });
 
-// ✅ Start Server
-const server = app.listen(PORT, '0.0.0.0', () => {
-    console.log(`[Keep-Alive] Server running on port ${PORT}`);
-    console.log(`[Keep-Alive] Platform: ${
-        KOYEB_PUBLIC_URL ? 'Koyeb' : RENDER_EXTERNAL_URL ? 'Render' : 'Local'
-    }`);
-    console.log(`[Keep-Alive] Initial URL: ${SELF_URL}`);
+// ✅ Local ping (keeps Node active)
+let localTimer = null;
+function startLocalPinger() {
+    if (localTimer) clearInterval(localTimer);
 
-    startAggressivePing();
-});
+    const localURL = `http://127.0.0.1:${PORT}/health`;
+    log("Local pinger ->", localURL);
 
-// ✅ Aggressive Auto Ping (with dynamic REAL_URL)
-function startAggressivePing() {
-    const pingInterval = 2 * 60 * 1000;
-    let pingCount = 0;
+    localTimer = setInterval(() => {
+        http.get(localURL, res => res.resume());
+    }, 120000); // every 2 min
+}
+startLocalPinger();
 
-    const performPing = () => {
-        pingCount++;
+// ✅ External pinger (only after REAL_URL learned)
+let externalTimer = null;
 
-        const urlToPing = REAL_URL + '/health';
-        const isHttps = urlToPing.startsWith('https');
-        const protocol = isHttps ? https : http;
+function restartExternalPinger() {
+    if (!REAL_URL) return;
+    if (externalTimer) clearInterval(externalTimer);
 
-        console.log(`[Keep-Alive] Ping #${pingCount} → ${urlToPing}`);
+    const url = REAL_URL + "/health";
+    const isHttps = REAL_URL.startsWith("https");
+    const proto = isHttps ? https : http;
 
-        protocol.get(urlToPing, { timeout: 10000 }, (res) => {
-            res.on('data', () => {});
-            res.on('end', () => {
-                if (res.statusCode === 200) {
-                    console.log(`[Keep-Alive] ✅ Ping #${pingCount} successful`);
-                }
+    log("External pinger ->", url);
+
+    externalTimer = setInterval(async () => {
+        try {
+            const time = new Date().toISOString();
+            log(`PING → ${url} @ ${time}`);
+
+            proto.get(url, res => {
+                res.on("data", () => {});
+                res.on("end", () => {
+                    if (res.statusCode === 200) {
+                        log("✅ External ping OK");
+                    } else {
+                        log("⚠️ Non-200 status:", res.statusCode);
+                    }
+                });
+            }).on("error", () => {
+                log("❌ External ping failed");
             });
-        }).on('error', (err) => {
-            console.error(`[Keep-Alive] ❌ Ping #${pingCount} failed: ${err.message}`);
-        });
-    };
 
-    performPing();
-    setInterval(performPing, pingInterval);
-
-    console.log(`[Keep-Alive] Aggressive ping active every 2 minutes`);
-});
-
-// ✅ Prevent exit
-setInterval(() => {
-    const used = process.memoryUsage();
-    console.log(`[Keep-Alive] Memory: ${Math.round(used.heapUsed/1024/1024)}MB`);
-}, 5 * 60 * 1000);
-
-// ✅ Block GC to avoid idle shutdown
-if (global.gc) {
-    setInterval(() => {
-        console.log('[Keep-Alive] Preventing GC...');
-    }, 10 * 60 * 1000);
+        } catch {}
+    }, 240000); // every 4 minutes
 }
 
-// ✅ Graceful shutdown
-process.on('SIGTERM', () => {
-    console.log('[Keep-Alive] SIGTERM received');
-    server.close(() => process.exit(0));
+// ✅ Domain verification (HEAD request) every 10 min
+setInterval(() => {
+    if (!REAL_URL) return;
+
+    const checkURL = REAL_URL + "/health";
+    const proto = REAL_URL.startsWith("https") ? https : http;
+
+    proto.request(checkURL, { method: "HEAD", timeout: 3000 }, (res) => {
+        if (res.statusCode === 200) log("✅ Domain verified:", REAL_URL);
+        else log("⚠️ Domain check returned:", res.statusCode);
+    }).on("error", () => {
+        log("❌ Domain failed. Waiting for new whoami header...");
+    }).end();
+
+}, 600000); // every 10 minutes
+
+// ✅ Start server
+const server = app.listen(PORT, "0.0.0.0", () => {
+    log(`Server running on ${PORT}`);
+    log(`Initial URL: ${REAL_URL || "none"}`);
+    if (REAL_URL) restartExternalPinger();
 });
 
-process.on('SIGINT', () => {
-    console.log('[Keep-Alive] SIGINT received');
-    server.close(() => process.exit(0));
-});
+// ✅ Safe exit
+process.on("SIGTERM", () => server.close(() => process.exit(0)));
+process.on("SIGINT", () => server.close(() => process.exit(0)));
 
 export { server, app };
