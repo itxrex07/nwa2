@@ -3,7 +3,7 @@ import http from 'http';
 import https from 'https';
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 8000;
 const KOYEB_PUBLIC_URL = process.env.KOYEB_PUBLIC_URL;
 const RENDER_EXTERNAL_URL = process.env.RENDER_EXTERNAL_URL;
 const SELF_URL = RENDER_EXTERNAL_URL || KOYEB_PUBLIC_URL || `http://localhost:${PORT}`;
