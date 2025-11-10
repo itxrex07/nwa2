@@ -466,3 +466,9 @@
 {"level":30,"time":1762754647841,"pid":366,"hostname":"zp1v56uxy8rdx5ypatb0ockcb9tr6a-oci3","module":"store","msg":"Store loaded successfully"}
 {"level":30,"time":1762754647841,"pid":366,"hostname":"zp1v56uxy8rdx5ypatb0ockcb9tr6a-oci3","module":"store","msg":"Store loaded from file: ./whatsapp-store.json"}
 {"level":30,"time":1762754647841,"pid":366,"hostname":"zp1v56uxy8rdx5ypatb0ockcb9tr6a-oci3","msg":"🔧 Initializing HyperWa Userbot with Enhanced Store..."}
+{"level":30,"time":1762754682330,"pid":371,"hostname":"zp1v56uxy8rdx5ypatb0ockcb9tr6a-oci3","msg":"🚀 Starting HyperWa Userbot..."}
+{"level":30,"time":1762754682330,"pid":371,"hostname":"zp1v56uxy8rdx5ypatb0ockcb9tr6a-oci3","msg":"🎯 Version: 3.0.0"}
+{"level":30,"time":1762754682330,"pid":371,"hostname":"zp1v56uxy8rdx5ypatb0ockcb9tr6a-oci3","msg":"🏢 Company: Dawium Technologies"}
+{"level":30,"time":1762754682331,"pid":371,"hostname":"zp1v56uxy8rdx5ypatb0ockcb9tr6a-oci3","module":"store","msg":"Store loaded successfully"}
+{"level":30,"time":1762754682331,"pid":371,"hostname":"zp1v56uxy8rdx5ypatb0ockcb9tr6a-oci3","module":"store","msg":"Store loaded from file: ./whatsapp-store.json"}
+{"level":30,"time":1762754682332,"pid":371,"hostname":"zp1v56uxy8rdx5ypatb0ockcb9tr6a-oci3","msg":"🔧 Initializing HyperWa Userbot with Enhanced Store..."}
