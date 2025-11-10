@@ -4,14 +4,37 @@ import https from 'https';
 
 const app = express();
 const PORT = process.env.PORT || 8000;
-const KOYEB_PUBLIC_URL = process.env.KOYEB_PUBLIC_URL;
-const RENDER_EXTERNAL_URL = process.env.RENDER_EXTERNAL_URL;
-const SELF_URL = RENDER_EXTERNAL_URL || KOYEB_PUBLIC_URL || `http://localhost:${PORT}`;
+
+// Platform envs
+const KOYEB_PUBLIC_URL = process.env.KOYEB_PUBLIC_URL || null;
+const RENDER_EXTERNAL_URL = process.env.RENDER_EXTERNAL_URL || null;
+
+// Default SELF URL (fallback)
+let SELF_URL = RENDER_EXTERNAL_URL || KOYEB_PUBLIC_URL || `http://localhost:${PORT}`;
+
+// Runtime-learned actual domain
+let REAL_URL = SELF_URL;
 
 let botHealthy = false;
 
 app.use(express.json());
 
+// ✅ AUTO-DETECT REAL PUBLIC URL (Works on Koyeb + Render)
+app.use((req, res, next) => {
+    const proto = req.headers["x-forwarded-proto"];
+    const host = req.headers["x-forwarded-host"] || req.headers.host;
+
+    if (proto && host) {
+        const detected = `${proto}://${host}`;
+        if (REAL_URL !== detected) {
+            console.log(`[Keep-Alive] ✅ Detected external URL: ${detected}`);
+            REAL_URL = detected;
+        }
+    }
+    next();
+});
+
+// ✅ UI Page
 app.get('/', (req, res) => {
     const uptime = process.uptime();
     const hours = Math.floor(uptime / 3600);
@@ -42,8 +65,8 @@ app.get('/', (req, res) => {
             backdrop-filter: blur(10px);
             border-radius: 20px;
             padding: 40px;
-            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
-            border: 1px solid rgba(255, 255, 255, 0.18);
+            box-shadow: 0 8px 32px rgba(31,38,135,.37);
+            border: 1px solid rgba(255,255,255,.18);
             max-width: 500px;
             text-align: center;
         }
@@ -53,8 +76,8 @@ app.get('/', (req, res) => {
             animation: glow 2s ease-in-out infinite alternate;
         }
         @keyframes glow {
-            from { text-shadow: 0 0 10px #fff, 0 0 20px #fff, 0 0 30px #667eea; }
-            to { text-shadow: 0 0 20px #fff, 0 0 30px #764ba2, 0 0 40px #764ba2; }
+            from { text-shadow: 0 0 10px #fff,0 0 20px #fff,0 0 30px #667eea; }
+            to   { text-shadow: 0 0 20px #fff,0 0 30px #764ba2,0 0 40px #764ba2; }
         }
         .status {
             display: inline-block;
@@ -65,26 +88,15 @@ app.get('/', (req, res) => {
             font-weight: bold;
             animation: pulse 2s infinite;
         }
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.7; }
-        }
-        .info {
-            background: rgba(255, 255, 255, 0.1);
-            padding: 20px;
-            border-radius: 10px;
-            margin-top: 20px;
-            text-align: left;
-        }
+        @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:.7;} }
+        .info { background: rgba(255,255,255,.1); padding:20px; border-radius:10px; margin-top:20px; text-align:left; }
         .info-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 8px 0;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display:flex; justify-content:space-between; padding:8px 0;
+            border-bottom:1px solid rgba(255,255,255,0.1);
         }
-        .info-item:last-child { border-bottom: none; }
-        .label { font-weight: 600; }
-        .value { color: #a5b4fc; }
+        .info-item:last-child { border-bottom:none; }
+        .label { font-weight:600; }
+        .value { color:#a5b4fc; }
     </style>
 </head>
 <body>
@@ -92,35 +104,19 @@ app.get('/', (req, res) => {
         <h1>HyperWa Bot</h1>
         <div class="status">ACTIVE</div>
         <div class="info">
-            <div class="info-item">
-                <span class="label">Status:</span>
-                <span class="value">Running</span>
-            </div>
-            <div class="info-item">
-                <span class="label">Uptime:</span>
-                <span class="value">${hours}h ${minutes}m ${seconds}s</span>
-            </div>
-            <div class="info-item">
-                <span class="label">Version:</span>
-                <span class="value">3.0.0</span>
-            </div>
-            <div class="info-item">
-                <span class="label">Bot Status:</span>
-                <span class="value">${botHealthy ? 'Connected' : 'Initializing'}</span>
-            </div>
+            <div class="info-item"><span class="label">Status:</span><span class="value">Running</span></div>
+            <div class="info-item"><span class="label">Uptime:</span><span class="value">${hours}h ${minutes}m ${seconds}s</span></div>
+            <div class="info-item"><span class="label">Version:</span><span class="value">3.0.0</span></div>
+            <div class="info-item"><span class="label">Bot Status:</span><span class="value">${botHealthy ? 'Connected' : 'Initializing'}</span></div>
+            <div class="info-item"><span class="label">Public URL:</span><span class="value">${REAL_URL}</span></div>
         </div>
     </div>
-    <script>
-        // Keep page alive by making requests
-        setInterval(() => {
-            fetch('/health').catch(() => {});
-        }, 60000);
-    </script>
 </body>
 </html>
     `);
 });
 
+// ✅ Health Endpoint
 app.get('/health', (req, res) => {
     res.json({
         status: 'ok',
@@ -132,93 +128,82 @@ app.get('/health', (req, res) => {
     });
 });
 
+// ✅ Ping
 app.get('/ping', (req, res) => {
     res.json({ alive: true, timestamp: Date.now() });
 });
 
+// ✅ Receive bot status
 app.post('/bot-status', (req, res) => {
     botHealthy = req.body?.healthy !== false;
     res.json({ received: true });
 });
 
+// ✅ Start Server
 const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`[Keep-Alive] Server running on port ${PORT}`);
-    console.log(`[Keep-Alive] Public URL: ${SELF_URL}`);
-    console.log(`[Keep-Alive] Platform: ${KOYEB_PUBLIC_URL ? 'Koyeb' : RENDER_EXTERNAL_URL ? 'Render' : 'Local'}`);
+    console.log(`[Keep-Alive] Platform: ${
+        KOYEB_PUBLIC_URL ? 'Koyeb' : RENDER_EXTERNAL_URL ? 'Render' : 'Local'
+    }`);
+    console.log(`[Keep-Alive] Initial URL: ${SELF_URL}`);
+
     startAggressivePing();
 });
 
+// ✅ Aggressive Auto Ping (with dynamic REAL_URL)
 function startAggressivePing() {
-    // Ultra aggressive pinging - every 2 minutes
     const pingInterval = 2 * 60 * 1000;
     let pingCount = 0;
 
     const performPing = () => {
         pingCount++;
-        const pingTime = new Date().toISOString();
-        const isHttps = SELF_URL.startsWith('https');
+
+        const urlToPing = REAL_URL + '/health';
+        const isHttps = urlToPing.startsWith('https');
         const protocol = isHttps ? https : http;
 
-        // Log for debugging
-        console.log(`[Keep-Alive] Ping #${pingCount} at ${pingTime}`);
+        console.log(`[Keep-Alive] Ping #${pingCount} → ${urlToPing}`);
 
-        protocol.get(SELF_URL + '/health', {
-            timeout: 10000,
-            headers: {
-                'User-Agent': 'HyperWa-KeepAlive/3.0.0',
-                'Connection': 'keep-alive'
-            }
-        }, (res) => {
-            let data = '';
-            res.on('data', (chunk) => { data += chunk; });
+        protocol.get(urlToPing, { timeout: 10000 }, (res) => {
+            res.on('data', () => {});
             res.on('end', () => {
                 if (res.statusCode === 200) {
-                    console.log(`[Keep-Alive] Ping successful #${pingCount}`);
+                    console.log(`[Keep-Alive] ✅ Ping #${pingCount} successful`);
                 }
             });
         }).on('error', (err) => {
-            console.error(`[Keep-Alive] Ping failed #${pingCount}: ${err.message}`);
-        }).on('timeout', function() {
-            this.destroy();
+            console.error(`[Keep-Alive] ❌ Ping #${pingCount} failed: ${err.message}`);
         });
     };
 
-    // Perform first ping immediately
     performPing();
-
-    // Then schedule regular pings
     setInterval(performPing, pingInterval);
-    console.log(`[Keep-Alive] Aggressive ping enabled every ${pingInterval / 1000 / 60} minutes`);
-}
 
-// Prevent process from exiting
+    console.log(`[Keep-Alive] Aggressive ping active every 2 minutes`);
+});
+
+// ✅ Prevent exit
 setInterval(() => {
-    // Keep event loop busy
     const used = process.memoryUsage();
-    console.log(`[Keep-Alive] Memory: ${Math.round(used.heapUsed / 1024 / 1024)}MB / ${Math.round(used.heapTotal / 1024 / 1024)}MB`);
+    console.log(`[Keep-Alive] Memory: ${Math.round(used.heapUsed/1024/1024)}MB`);
 }, 5 * 60 * 1000);
 
-// Force garbage collection prevention
+// ✅ Block GC to avoid idle shutdown
 if (global.gc) {
     setInterval(() => {
-        console.log('[Keep-Alive] Preventing garbage collection...');
+        console.log('[Keep-Alive] Preventing GC...');
     }, 10 * 60 * 1000);
 }
 
+// ✅ Graceful shutdown
 process.on('SIGTERM', () => {
-    console.log('[Keep-Alive] SIGTERM received, initiating shutdown...');
-    server.close(() => {
-        console.log('[Keep-Alive] Server closed');
-        process.exit(0);
-    });
+    console.log('[Keep-Alive] SIGTERM received');
+    server.close(() => process.exit(0));
 });
 
 process.on('SIGINT', () => {
-    console.log('[Keep-Alive] SIGINT received, initiating shutdown...');
-    server.close(() => {
-        console.log('[Keep-Alive] Server closed');
-        process.exit(0);
-    });
+    console.log('[Keep-Alive] SIGINT received');
+    server.close(() => process.exit(0));
 });
 
 export { server, app };
